@@ -63,7 +63,7 @@ jobs:
         working-directory: app
 
       - name: Install Playwright Browsers
-        run: npx --yes playwright install --with-deps
+        run: npx @playwright/test install --with-deps
         working-directory: app
 
       - name: Set up Python for Flask
