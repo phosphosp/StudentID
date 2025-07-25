@@ -1,0 +1,128 @@
+name: Lab Test Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  integration-test:
+    name: Python Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pytest
+        run: pytest app/
+
+  dependency-check:
+    name: OWASP Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: "StudentID"
+          path: "app"
+          format: "HTML"
+          out: "dependency-check-report"
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dependency-Check-Report
+          path: dependency-check-report
+
+  playwright-tests:
+    name: Playwright UI Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Node.js dependencies
+        run: npm install
+        working-directory: app
+
+      - name: Install Playwright Browsers
+        run: npx playwright install
+        working-directory: app
+
+      - name: Set up Python for Flask
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+        working-directory: app
+
+      - name: Start Flask Server
+        run: |
+          nohup python3 main.py &
+          sleep 5
+        working-directory: app
+
+      - name: Run Playwright tests
+        run: npx playwright test
+        working-directory: app
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: app/playwright-report
+
+  eslint:
+    name: ESLint Code Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Cache Node.js modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+          restore-keys: ${{ runner.os }}-node-modules
+
+      - name: Install Node.js dependencies
+        run: npm install
+
+      - name: Create reports directory
+        run: mkdir -p reports
+
+      - name: Install ESLint SARIF Formatter
+        run: npm install @microsoft/eslint-formatter-sarif --save-dev
+
+      - name: Run ESLint with SARIF output
+        run: npx eslint . --format @microsoft/eslint-formatter-sarif --output-file reports/eslint-results.sarif || true
+
+      - name: Debug ESLint Output
+        run: cat reports/eslint-results.sarif || echo "No SARIF report generated"
+
+      - name: Upload ESLint SARIF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-sarif-report
+          path: reports/eslint-results.sarif
