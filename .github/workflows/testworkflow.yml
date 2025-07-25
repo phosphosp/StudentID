@@ -102,27 +102,30 @@ jobs:
       - name: Cache Node.js modules
         uses: actions/cache@v4
         with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+          path: app/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('app/package-lock.json') }}
           restore-keys: ${{ runner.os }}-node-modules
 
       - name: Install Node.js dependencies
         run: npm install
+        working-directory: app
 
       - name: Create reports directory
-        run: mkdir -p reports
+        run: mkdir -p app/reports
 
       - name: Install ESLint SARIF Formatter
         run: npm install @microsoft/eslint-formatter-sarif --save-dev
+        working-directory: app
 
       - name: Run ESLint with SARIF output
         run: npx eslint . --format @microsoft/eslint-formatter-sarif --output-file reports/eslint-results.sarif || true
+        working-directory: app
 
       - name: Debug ESLint Output
-        run: cat reports/eslint-results.sarif || echo "No SARIF report generated"
+        run: cat app/reports/eslint-results.sarif || echo "No SARIF report generated"
 
       - name: Upload ESLint SARIF artifact
         uses: actions/upload-artifact@v4
         with:
           name: eslint-sarif-report
-          path: reports/eslint-results.sarif
+          path: app/reports/eslint-results.sarif
